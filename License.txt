@@ -2,7 +2,7 @@ PROPRIETARY LICENSE - ALL RIGHTS RESERVED
 
 Copyright (c) 2026 Aalon Peters
 
-Aalon and Deklon Bakery Tracker
+A & D's Bakery Tracker
 
 This software is proprietary and private. No permission is granted to any person, 
 company, or organization to use, copy, modify, distribute, or reproduce this 

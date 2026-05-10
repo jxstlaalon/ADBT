@@ -653,7 +653,7 @@ export default function App() {
                 Daily Operations
               </div>
               <h1 className="fdsa-title" style={{ margin: '2px 0 0', fontFamily: FONT_DISPLAY, fontSize: 28, fontWeight: 500, letterSpacing: '-0.015em', color: C.ink }}>
-                Aalon and Deklon Bakery Tracker
+                A & D's Bakery Tracker
               </h1>
             </div>
           </div>
@@ -747,7 +747,7 @@ export default function App() {
           <img src="logo.png" alt="Aalon & Deklon Bakery" style={{ width: 150, height: 150, objectFit: 'contain', marginBottom: 8 }} />
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 500, color: C.ink, letterSpacing: '0.01em' }}>
-              Aalon and Deklon Bakery
+              A & D's Bakery
             </div>
           </div>
           <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.28em', color: C.faint, fontWeight: 500 }}>

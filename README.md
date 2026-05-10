@@ -1,4 +1,4 @@
-# Aalon and Deklon Bakery Tracker
+# A & D's Bakery Tracker
 ### Daily Sales Tracking for Aalon & Deklon Bakery
 
 A dedicated daily tally system designed for bakery front-desk operations. This tracker streamlines the tracking of bakery items, pastries, and refreshments with automated reporting, receipt generation, and secure cloud storage.
