@@ -744,7 +744,7 @@ export default function App() {
 
       <footer className="fdsa-footer" style={{ borderTop: `1px solid ${C.line}`, backgroundColor: C.card, marginTop: 40 }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 28px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-          <img src="logo.png" alt="Aalon & Deklon Bakery" style={{ width: 250, height: 250, objectFit: 'contain', marginBottom: 8 }} />
+          <img src="logo.png" alt="Aalon & Deklon Bakery" style={{ width: 150, height: 150, objectFit: 'contain', marginBottom: 8 }} />
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 500, color: C.ink, letterSpacing: '0.01em' }}>
               Aalon and Deklon Bakery
