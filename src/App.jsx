@@ -552,7 +552,7 @@ export default function App() {
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
             <img src="logo.png" alt="Aalon & Deklon Bakery" style={{ width: 100, height: 100, objectFit: 'contain', marginBottom: 16 }} />
             <div style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 500, color: C.ink, marginBottom: 4 }}>
-              Aalon & Deklon Bakery
+A & D's Bakery
             </div>
             <div style={{ fontSize: 13, color: C.mute }}>
               Enter your password to continue
