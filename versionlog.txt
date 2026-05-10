@@ -1,0 +1,107 @@
+VERSION LOG - Aalon and Deklon Bakery Tracker
+=============================================
+
+Version 1.0 - Current
+--------------------
+Release Date: May 9, 2026
+
+NEW FEATURES (v1.0)
+===================
+
+1. DAILY TALLY (Editor View)
+   - Date picker to select any working date (past, today, future)
+   - Visual indicators for current day (green), past days (gold), future dates (red)
+   - Jump to today button for quick navigation
+   - Category-based item counter system with +/- buttons
+   - Six product categories:
+     * Savoury: Pie ($10), Sausage Roll ($10), Mini Pizza ($10), Cheesy Meat Roll ($10), Puff ($7)
+     * Specialty: Strawberry Cheese Cake ($25), Cinnamon Rolls ($12)
+     * Sweet: Assorted Cake Slice ($8), Chocolate Brownie ($7)
+     * Cookie: Chocolate Chip Cookie ($5), Oatmeal Raisin ($5)
+     * Savoury (additional): Ham & Cheese Scroll ($6)
+     * Drinks: Wine ($12)
+   - Real-time subtotal per category
+   - Real-time grand total calculation
+   - Item count display
+
+2. SALES TRACKING WITH TIMESTAMPS
+   - Each sale recorded with: itemId, delta (+/-), timestamp
+   - Sales accumulate during the day
+   - Timestamps enable tracking when items were sold
+
+3. SAVE FUNCTIONALITY
+   - Quick Save button (save without signature)
+   - End Day & Save with digital signature (name entry)
+   - Records saved with:
+     * date, quantities, sales history, total, signature
+     * savedAt, lastEdited, editCount timestamps
+   - Edit count tracking (shows number of times a record was edited)
+
+4. DATA PERSISTENCE
+   - Firebase Firestore cloud storage
+   - Daily entries stored with complete sales history
+   - Signature tracking for accountability
+   - Delete functionality with confirmation
+
+5. RECEIPT FEATURE
+   - Receipt button in editor (for saved days)
+   - Print/View receipt modal showing:
+     * Date and signature status
+     * Items sold with quantities (+/-)
+     * Timestamps for each sale
+     * Total amount
+     * Signature at bottom
+   - Download as PDF functionality (jsPDF)
+   - Fallback to show items from quantities if no sales data
+
+6. PAST DAYS VIEW
+   - Chronological list of all saved daily records (newest first)
+   - Grand total of all-time recorded sales
+   - Day count display
+   - Quick view of: date, signature, item count, total
+   - Open record to edit functionality
+   - Delete record with confirmation
+   - Edit count indicator per record
+
+7. EXPORT VIEW
+   - Date range selection (start and end dates)
+   - Preset range buttons:
+     * This Month
+     * Last Month
+     * Last 7 Days
+     * This Year
+   - Export to Excel (.xlsx) with 3 sheets:
+     * Summary: Date + Daily Total + Grand Total
+     * Itemized: Date + Category + Item + Unit Price + Quantity + Subtotal
+   - Money formatting in Excel cells
+
+8. AUTHENTICATION
+   - Session-based login protection
+   - Email/password authentication
+   - Login screen with branded UI
+   - Admin account: admin@adbt.org
+   - Logout functionality in header
+
+9. MOBILE RESPONSIVE
+   - Responsive layout for all screen sizes
+   - Header title adapts to smaller screens
+   - Navigation horizontal scroll on mobile
+   - Footer buttons wrap properly
+   - Past day rows stack vertically
+   - Receipt modal optimized for mobile
+   - Category cards resize appropriately
+
+10. USER INTERFACE
+    - Professional warm ivory/brand color scheme
+    - Custom colors: ink (#2B2319), gold (#C9A34A), cardinal (#5eb76a)
+    - Toast notifications (success/error messages)
+    - Modal confirmations (delete, reset)
+    - Signature modal with totals display
+    - Built with React + Lucide icons + XLSX + jsPDF libraries
+    - Custom fonts: Fraunces (display), Instrument Sans (body), JetBrains Mono (mono)
+
+11. TECHNICAL
+    - React 18 SPA with Vite
+    - Firebase Auth + Firestore
+    - Cloud deployment ready
+    - Print-friendly PDF generation
