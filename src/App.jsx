@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-
-// v1
 import {
   Plus, Minus, Calendar, RotateCcw, ChevronRight, Trash2, AlertCircle, FileDown,
   X, Check, CheckCircle2, History, CalendarRange, Info, ClipboardList, Save,
-  Coffee, Croissant, Cake, Cookie, Wine, Search, Printer, DollarSign, User
+  Coffee, Croissant, Cake, Cookie, Wine, Search, Printer, DollarSign, User, ArrowLeft,
+  Wallet, FileText
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
@@ -192,6 +191,8 @@ export default function App() {
   const [startDayOpen, setStartDayOpen] = useState(false);
   const [startName, setStartName]   = useState('');
   const [startFloat, setStartFloat] = useState('');
+  const [notes, setNotes] = useState({ payouts: [], clears: [], custom: [] });
+  const [noteModalOpen, setNoteModalOpen] = useState(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -230,12 +231,14 @@ export default function App() {
           setSales(rec.sales || []);
           setStartName(rec.startName || '');
           setStartFloat(rec.startFloat !== undefined ? String(rec.startFloat) : '');
+          setNotes(rec.notes || { payouts: [], clears: [], custom: [] });
         } else {
           setExistingRecord(null);
           setQuantities(emptyQuantities());
           setSales([]);
           setStartName('');
           setStartFloat('');
+          setNotes({ payouts: [], clears: [], custom: [] });
         }
       } catch {
         if (cancelled) return;
@@ -254,6 +257,29 @@ export default function App() {
   }, [workingDate]);
 
   useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const keys = await window.storage.list(STORAGE_PREFIX, false);
+        const days = [];
+        for (const key of keys) {
+          const data = await window.storage.get(key, false);
+          if (data) {
+            const rec = JSON.parse(data);
+            days.push(rec);
+          }
+        }
+        days.sort((a,b) => b.date.localeCompare(a.date));
+        setPastDays(days);
+      } catch (err) {
+        console.error(err);
+        setPastDays([]);
+      }
+    })();
+  }, [user]);
+
+  useEffect(() => {
+    if (view !== 'past') return;
     (async () => {
       try {
         const keys = await window.storage.list(STORAGE_PREFIX, false);
@@ -350,6 +376,7 @@ export default function App() {
       savedAt: existingRecord?.savedAt || new Date().toISOString(),
       lastEdited: new Date().toISOString(),
       editCount: (existingRecord?.editCount || 0) + (existingRecord ? 1 : 0),
+      notes,
     };
     try {
       await window.storage.set(STORAGE_PREFIX + workingDate, JSON.stringify(record), false);
@@ -387,6 +414,16 @@ export default function App() {
     }
   };
 
+  const addNote = (type, value) => {
+    const note = { id: Date.now(), value, createdAt: new Date().toISOString() };
+    setNotes(prev => ({ ...prev, [type]: [...prev[type], note] }));
+    setNoteModalOpen(null);
+  };
+
+  const removeNote = (type, id) => {
+    setNotes(prev => ({ ...prev, [type]: prev[type].filter(n => n.id !== id) }));
+  };
+
   const submitEndDay = async () => {
     const name = sigName.trim();
     if (!name) {
@@ -404,6 +441,7 @@ export default function App() {
       savedAt: existingRecord?.savedAt || new Date().toISOString(),
       lastEdited: new Date().toISOString(),
       editCount: (existingRecord?.editCount || 0) + (existingRecord ? 1 : 0),
+      notes,
     };
     try {
       await window.storage.set(STORAGE_PREFIX + workingDate, JSON.stringify(record), false);
@@ -446,6 +484,10 @@ export default function App() {
   };
 
   const jumpToToday = () => setWorkingDate(todayISO());
+  const goBackToPastDays = () => {
+    setWorkingDate(todayISO());
+    setView('past');
+  };
 
   const showToast = (kind, msg) => {
     setToast({ kind, msg });
@@ -753,7 +795,7 @@ A & D's Bakery
             bump={bump} resetCounters={resetCounters}
             isDirty={isDirty} isToday={isToday} isPastDate={isPastDate} isFutureDate={isFutureDate}
             dailyTotal={dailyTotal} itemsCount={itemsCount}
-            openEndDay={openEndDay} jumpToToday={jumpToToday}
+            openEndDay={openEndDay} jumpToToday={jumpToToday} goBackToPastDays={goBackToPastDays}
             loaded={loaded}
             undoSnapshot={undoSnapshot} undoReset={undoReset}
             quickSave={quickSave}
@@ -764,6 +806,8 @@ A & D's Bakery
             setStartName={setStartName} setStartFloat={setStartFloat}
             saveStartDay={saveStartDay}
             hasStartedDay={hasStartedDay}
+            notes={notes} addNote={addNote} removeNote={removeNote}
+            setNoteModalOpen={setNoteModalOpen}
           />
         )}
         {view === 'past' && (
@@ -835,6 +879,14 @@ A & D's Bakery
         />
       )}
 
+      {noteModalOpen && (
+        <NoteModal
+          type={noteModalOpen}
+          onCancel={() => setNoteModalOpen(null)}
+          onSave={(val) => addNote(noteModalOpen === 'payout' ? 'payouts' : noteModalOpen === 'clear' ? 'clears' : 'custom', val)}
+        />
+      )}
+
       {confirmDelete && (
         <ConfirmModal
           title="Delete day record?"
@@ -866,12 +918,13 @@ function EditorView({
   existingRecord, quantities, bump, resetCounters,
   isDirty, isToday, isPastDate, isFutureDate,
   dailyTotal, itemsCount,
-  openEndDay, jumpToToday, loaded,
+  openEndDay, jumpToToday, goBackToPastDays, loaded,
   undoSnapshot, undoReset,
   quickSave, sales, setReceiptView,
   startName, startFloat, openStartDay,
   setStartName, setStartFloat, saveStartDay,
   hasStartedDay,
+  notes, addNote, removeNote, setNoteModalOpen,
 }) {
   return (
     <div className="fdsa-fade">
@@ -882,6 +935,16 @@ function EditorView({
         border: `1px solid ${isToday ? C.line : (isPastDate ? '#E8D9B6' : '#E6C8C5')}`,
         borderRadius: 10, marginBottom: 24,
       }}>
+        {isPastDate && goBackToPastDays && (
+          <button onClick={goBackToPastDays}
+            style={{
+              padding: '9px 14px', border: `1px solid ${C.lineStrong}`, borderRadius: 6,
+              background: C.card, cursor: 'pointer', fontSize: 12, fontWeight: 500,
+              color: C.ink, display: 'flex', alignItems: 'center', gap: 6, fontFamily: FONT_BODY,
+            }}>
+            <ArrowLeft size={14} /> Back
+          </button>
+        )}
         <Calendar size={18} style={{ color: isToday ? C.cardinal : (isPastDate ? '#946C20' : C.danger) }} />
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.22em', color: C.mute, fontWeight: 600 }}>
@@ -1034,6 +1097,69 @@ function EditorView({
             ))}
           </div>
 
+          <div style={{
+            marginTop: 20, padding: '20px 24px',
+            background: C.card, border: `1px solid ${C.line}`, borderRadius: 12,
+          }}>
+            <div style={{
+              fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.25em',
+              color: C.mute, fontWeight: 600, marginBottom: 14,
+            }}>
+              Notes
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button onClick={() => setNoteModalOpen('payout')}
+                style={{
+                  padding: '12px 18px', background: C.softBg, color: C.ink,
+                  border: `1px solid ${C.line}`, borderRadius: 8, cursor: 'pointer',
+                  fontSize: 13, fontWeight: 500, fontFamily: FONT_BODY,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                <Wallet size={16} /> Payout
+              </button>
+              <button onClick={() => setNoteModalOpen('clear')}
+                style={{
+                  padding: '12px 18px', background: C.softBg, color: C.ink,
+                  border: `1px solid ${C.line}`, borderRadius: 8, cursor: 'pointer',
+                  fontSize: 13, fontWeight: 500, fontFamily: FONT_BODY,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                <Wallet size={16} /> Clear
+              </button>
+              <button onClick={() => setNoteModalOpen('custom')}
+                style={{
+                  padding: '12px 18px', background: C.softBg, color: C.ink,
+                  border: `1px solid ${C.line}`, borderRadius: 8, cursor: 'pointer',
+                  fontSize: 13, fontWeight: 500, fontFamily: FONT_BODY,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                <FileText size={16} /> Custom
+              </button>
+            </div>
+            {(notes.payouts.length > 0 || notes.clears.length > 0 || notes.custom.length > 0) && (
+              <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {notes.payouts.map(n => (
+                  <div key={n.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: C.softBg, borderRadius: 6, fontSize: 13 }}>
+                    <span style={{ color: C.danger }}>Payout: {formatMoney(n.value)}</span>
+                    <button onClick={() => removeNote('payouts', n.id)} style={{ background: 'none', border: 'none', color: C.mute, cursor: 'pointer', padding: 4 }}>×</button>
+                  </div>
+                ))}
+                {notes.clears.map(n => (
+                  <div key={n.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: C.softBg, borderRadius: 6, fontSize: 13 }}>
+                    <span style={{ color: C.success }}>Clear: {formatMoney(n.value)}</span>
+                    <button onClick={() => removeNote('clears', n.id)} style={{ background: 'none', border: 'none', color: C.mute, cursor: 'pointer', padding: 4 }}>×</button>
+                  </div>
+                ))}
+                {notes.custom.map(n => (
+                  <div key={n.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: C.softBg, borderRadius: 6, fontSize: 13 }}>
+                    <span>Note: {n.value}</span>
+                    <button onClick={() => removeNote('custom', n.id)} style={{ background: 'none', border: 'none', color: C.mute, cursor: 'pointer', padding: 4 }}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="fdsa-total-bar" style={{
             marginTop: 28, padding: '24px 28px',
             background: `linear-gradient(135deg, ${C.ink} 0%, #1e1813 100%)`,
@@ -1080,6 +1206,7 @@ function EditorView({
                   sales,
                   total: dailyTotal,
                   signature: existingRecord?.signature || null,
+                  notes,
                 })}
                 style={{
                   padding: '12px 18px',
@@ -1722,6 +1849,104 @@ function ConfirmModal({ title, body, confirmLabel, danger, onConfirm, onCancel }
   );
 }
 
+function NoteModal({ type, onCancel, onSave }) {
+  const [value, setValue] = useState('');
+  const isAmount = type === 'payout' || type === 'clear';
+  const isValid = isAmount 
+    ? value && !isNaN(parseFloat(value)) && parseFloat(value) > 0
+    : value.trim().length > 0;
+
+  const handleSave = () => {
+    if (!isValid) return;
+    if (isAmount) {
+      onSave(parseFloat(value));
+    } else {
+      onSave(value.trim());
+    }
+  };
+
+  const labels = { payout: 'Payout', clear: 'Clear', custom: 'Custom Note' };
+  const placeholders = { payout: '0.00', clear: '0.00', custom: 'Enter note...' };
+
+  return (
+    <ModalShell onCancel={onCancel}>
+      <div style={{ padding: 28, maxWidth: 420 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 10,
+            background: C.softBg, color: C.ink,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {type === 'custom' ? <FileText size={20} /> : <Wallet size={20} />}
+          </div>
+          <div>
+            <h3 style={{ margin: 0, fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 500 }}>
+              Add {labels[type]}
+            </h3>
+          </div>
+        </div>
+
+        {isAmount ? (
+          <div style={{ position: 'relative' }}>
+            <span style={{
+              position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
+              color: C.mute, fontSize: 16, fontFamily: FONT_MONO,
+            }}>$</span>
+            <input
+              type="number" min="0" step="0.01" autoFocus
+              value={value} onChange={e => setValue(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && isValid) handleSave(); }}
+              placeholder="0.00"
+              style={{
+                width: '100%', padding: '14px 14px 14px 32px',
+                border: `1px solid ${C.lineStrong}`, borderRadius: 8,
+                fontSize: 16, fontFamily: FONT_MONO, color: C.ink,
+                background: C.card, boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        ) : (
+          <input
+            type="text" autoFocus
+            value={value} onChange={e => setValue(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && isValid) handleSave(); }}
+            placeholder={placeholders[type]}
+            style={{
+              width: '100%', padding: '14px',
+              border: `1px solid ${C.lineStrong}`, borderRadius: 8,
+              fontSize: 15, fontFamily: FONT_BODY, color: C.ink,
+              background: C.card, boxSizing: 'border-box',
+            }}
+          />
+        )}
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
+          <button onClick={onCancel}
+            style={{
+              flex: '0 0 auto', padding: '11px 16px',
+              background: C.card, color: C.ink,
+              border: `1px solid ${C.lineStrong}`, borderRadius: 8,
+              cursor: 'pointer', fontSize: 13, fontWeight: 500, fontFamily: FONT_BODY,
+            }}>
+            Cancel
+          </button>
+          <button onClick={handleSave} disabled={!isValid}
+            style={{
+              flex: 1, padding: '11px 16px',
+              background: isValid ? C.cardinal : C.softBg,
+              color: isValid ? '#FAF8F3' : C.faint,
+              border: 'none', borderRadius: 8,
+              cursor: isValid ? 'pointer' : 'not-allowed',
+              fontSize: 14, fontWeight: 600, fontFamily: FONT_BODY,
+            }}>
+            Add
+          </button>
+        </div>
+      </div>
+    </ModalShell>
+  );
+}
+
 function ModalShell({ children, onCancel }) {
   return (
     <div className="no-print" onClick={onCancel}
@@ -1775,6 +2000,7 @@ function Toast({ kind, msg }) {
 }
 
 function ReceiptView({ day, onClose }) {
+  const notes = day.notes || { payouts: [], clears: [], custom: [] };
   const sales = day.sales || [];
   const sortedSales = [...sales].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
   
@@ -1866,6 +2092,41 @@ function ReceiptView({ day, onClose }) {
       doc.setTextColor(0);
       doc.text(day.signature, 105, y, { align: 'center' });
     }
+
+    if (notes.payouts.length > 0 || notes.clears.length > 0 || notes.custom.length > 0) {
+      y += 15;
+      doc.setDrawColor(200);
+      doc.setLineDashPattern([2, 2], 0);
+      doc.line(20, y, 190, y);
+      y += 8;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(100);
+      doc.text('NOTES', 20, y);
+      y += 8;
+      doc.setFont('helvetica', 'normal');
+      notes.payouts.forEach(n => {
+        doc.setTextColor(200, 50, 50);
+        doc.text('Payout', 20, y);
+        doc.setTextColor(0);
+        doc.text('$' + n.value.toFixed(2), 170, y, { align: 'right' });
+        y += 7;
+      });
+      notes.clears.forEach(n => {
+        doc.setTextColor(50, 160, 80);
+        doc.text('Clear', 20, y);
+        doc.setTextColor(0);
+        doc.text('$' + n.value.toFixed(2), 170, y, { align: 'right' });
+        y += 7;
+      });
+      notes.custom.forEach(n => {
+        doc.setTextColor(100);
+        doc.text('Note', 20, y);
+        doc.setTextColor(0);
+        doc.text(n.value, 50, y);
+        y += 7;
+      });
+    }
     
     doc.save(`Receipt_${day.date}.pdf`);
   };
@@ -1932,6 +2193,32 @@ function ReceiptView({ day, onClose }) {
         <div style={{ fontSize: 11, color: C.mute, marginBottom: 4 }}>Signed by</div>
         <div style={{ fontSize: 16, fontWeight: 500, color: C.ink, fontFamily: FONT_DISPLAY }}>{day.signature || '—'}</div>
       </div>
+
+      {(notes.payouts.length > 0 || notes.clears.length > 0 || notes.custom.length > 0) && (
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px dashed ${C.lineStrong}` }}>
+          <div style={{ fontSize: 11, color: C.mute, marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.2em', fontWeight: 600 }}>Notes</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {notes.payouts.map(n => (
+              <div key={n.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#FFF5F5', borderRadius: 6, fontSize: 13 }}>
+                <span style={{ color: C.danger, fontWeight: 500 }}>Payout</span>
+                <span style={{ fontFamily: FONT_MONO }}>{formatMoney(n.value)}</span>
+              </div>
+            ))}
+            {notes.clears.map(n => (
+              <div key={n.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#F0FFF4', borderRadius: 6, fontSize: 13 }}>
+                <span style={{ color: C.success, fontWeight: 500 }}>Clear</span>
+                <span style={{ fontFamily: FONT_MONO }}>{formatMoney(n.value)}</span>
+              </div>
+            ))}
+            {notes.custom.map(n => (
+              <div key={n.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: C.softBg, borderRadius: 6, fontSize: 13 }}>
+                <span style={{ color: C.ink, fontWeight: 500 }}>Note</span>
+                <span style={{ color: C.mute }}>{n.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
