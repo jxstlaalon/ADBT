@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Plus, Minus, Calendar, RotateCcw, ChevronRight, Trash2, AlertCircle, FileDown,
   X, Check, CheckCircle2, History, CalendarRange, Info, ClipboardList, Save,
-  Coffee, Croissant, Cake, Cookie, Wine, Search, Printer
+  Coffee, Croissant, Cake, Cookie, Wine, Search, Printer, DollarSign, User
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
@@ -187,6 +187,9 @@ export default function App() {
   const [user, setUser]             = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [loginError, setLoginError]   = useState('');
+  const [startDayOpen, setStartDayOpen] = useState(false);
+  const [startName, setStartName]   = useState('');
+  const [startFloat, setStartFloat] = useState('');
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -223,10 +226,14 @@ export default function App() {
           setExistingRecord(rec);
           setQuantities(rec.quantities || emptyQuantities());
           setSales(rec.sales || []);
+          setStartName(rec.startName || '');
+          setStartFloat(rec.startFloat !== undefined ? String(rec.startFloat) : '');
         } else {
           setExistingRecord(null);
           setQuantities(emptyQuantities());
           setSales([]);
+          setStartName('');
+          setStartFloat('');
         }
       } catch {
         if (cancelled) return;
@@ -270,6 +277,7 @@ export default function App() {
   const isToday     = workingDate === todayISO();
   const isPastDate  = workingDate < todayISO();
   const isFutureDate = workingDate > todayISO();
+  const hasStartedDay = !!(existingRecord?.startName || (startName && startName.trim()));
 
   const bump = (id, delta) => {
     if (delta === 0) return;
@@ -322,12 +330,20 @@ export default function App() {
     setSigOpen(true);
   };
 
+  const openStartDay = () => {
+    setStartName(existingRecord?.startName || '');
+    setStartFloat(existingRecord?.startFloat !== undefined ? String(existingRecord.startFloat) : '');
+    setStartDayOpen(true);
+  };
+
   const quickSave = async () => {
     const record = {
       date: workingDate,
       quantities: { ...quantities },
       sales: [...sales],
       total: dailyTotal,
+      startName: existingRecord?.startName || startName.trim() || null,
+      startFloat: existingRecord?.startFloat ?? (startFloat ? parseFloat(startFloat) : null),
       signature: existingRecord?.signature || null,
       savedAt: existingRecord?.savedAt || new Date().toISOString(),
       lastEdited: new Date().toISOString(),
@@ -344,6 +360,31 @@ export default function App() {
     }
   };
 
+  const saveStartDay = async () => {
+    const float = parseFloat(startFloat) || 0;
+    const record = {
+      date: workingDate,
+      quantities: { ...quantities },
+      sales: [...sales],
+      total: dailyTotal,
+      startName: startName.trim(),
+      startFloat: float,
+      signature: existingRecord?.signature || null,
+      savedAt: existingRecord?.savedAt || new Date().toISOString(),
+      lastEdited: new Date().toISOString(),
+      editCount: (existingRecord?.editCount || 0) + (existingRecord ? 1 : 0),
+    };
+    try {
+      await window.storage.set(STORAGE_PREFIX + workingDate, JSON.stringify(record), false);
+      setExistingRecord(record);
+      setIsDirty(true);
+      setStartDayOpen(false);
+      showToast('success', `Day started with float of ${formatMoney(float)}.`);
+    } catch (err) {
+      showToast('error', 'Unable to save: ' + err.message);
+    }
+  };
+
   const submitEndDay = async () => {
     const name = sigName.trim();
     if (!name) {
@@ -355,6 +396,8 @@ export default function App() {
       quantities: { ...quantities },
       sales: [...sales],
       total: dailyTotal,
+      startName: existingRecord?.startName || startName.trim() || null,
+      startFloat: existingRecord?.startFloat ?? (startFloat ? parseFloat(startFloat) : null),
       signature: name,
       savedAt: existingRecord?.savedAt || new Date().toISOString(),
       lastEdited: new Date().toISOString(),
@@ -714,6 +757,11 @@ A & D's Bakery
             quickSave={quickSave}
             sales={sales}
             setReceiptView={setReceiptView}
+            startName={startName} startFloat={startFloat}
+            openStartDay={openStartDay}
+            setStartName={setStartName} setStartFloat={setStartFloat}
+            saveStartDay={saveStartDay}
+            hasStartedDay={hasStartedDay}
           />
         )}
         {view === 'past' && (
@@ -769,6 +817,22 @@ A & D's Bakery
         />
       )}
 
+      {startDayOpen && (
+        <StartDayModal
+          workingDate={workingDate}
+          startName={startName}
+          setStartName={setStartName}
+          startFloat={startFloat}
+          setStartFloat={setStartFloat}
+          onCancel={() => { 
+            setStartDayOpen(false); 
+            setStartName(existingRecord?.startName || '');
+            setStartFloat(existingRecord?.startFloat !== undefined ? String(existingRecord.startFloat) : '');
+          }}
+          onSave={saveStartDay}
+        />
+      )}
+
       {confirmDelete && (
         <ConfirmModal
           title="Delete day record?"
@@ -803,6 +867,9 @@ function EditorView({
   openEndDay, jumpToToday, loaded,
   undoSnapshot, undoReset,
   quickSave, sales, setReceiptView,
+  startName, startFloat, openStartDay,
+  setStartName, setStartFloat, saveStartDay,
+  hasStartedDay,
 }) {
   return (
     <div className="fdsa-fade">
@@ -854,15 +921,29 @@ function EditorView({
         )}
       </div>
 
-      {existingRecord && (
+      <>
+        {hasStartedDay && (
         <div style={{
           padding: '10px 16px', backgroundColor: C.softBg, borderRadius: 8, marginBottom: 20,
           fontSize: 12, color: C.mute, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
         }}>
           <Info size={14} />
           <span>
-            Signed by <span style={{ color: C.ink, fontWeight: 600 }}>{existingRecord.signature}</span>
-            {' · '}Total on file: <span style={{ color: C.ink, fontWeight: 600, fontFamily: FONT_MONO }}>{formatMoney(existingRecord.total)}</span>
+            Started by <span style={{ color: C.ink, fontWeight: 600 }}>{existingRecord?.startName || startName}</span>
+            {' · '}Float: <span style={{ color: C.ink, fontWeight: 600, fontFamily: FONT_MONO }}>{formatMoney(existingRecord?.startFloat ?? (startFloat ? parseFloat(startFloat) : 0))}</span>
+            {isPastDate && (
+              <button onClick={openStartDay}
+                title="Edit float"
+                style={{
+                  background: 'none', border: 'none', padding: '2px 6px', marginLeft: 4,
+                  color: C.cardinal, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                  fontFamily: FONT_BODY, borderRadius: 4,
+                }}>
+                Edit
+              </button>
+            )}
+            {existingRecord?.signature && <><span> · </span>Signed by <span style={{ color: C.ink, fontWeight: 600 }}>{existingRecord.signature}</span></>}
+            <span> · </span>Total on file: <span style={{ color: C.ink, fontWeight: 600, fontFamily: FONT_MONO }}>{formatMoney(existingRecord?.total || dailyTotal)}</span>
           </span>
           {isDirty && <span style={{ color: C.cardinal, fontWeight: 600 }}>· Unsaved changes</span>}
           {undoSnapshot && (
@@ -904,11 +985,46 @@ function EditorView({
             Undo reset
           </button>
         </div>
+)}
+
+      {!loaded && (
+        <div style={{ padding: 60, textAlign: 'center', color: C.mute }}>Loading…</div>
       )}
 
-      {!loaded ? (
-        <div style={{ padding: 60, textAlign: 'center', color: C.mute }}>Loading…</div>
-      ) : (
+      {loaded && !hasStartedDay && (
+        <div style={{
+          padding: '60px 40px', textAlign: 'center',
+          background: C.card, border: `1px solid ${C.line}`, borderRadius: 16,
+          maxWidth: 500, margin: '40px auto',
+        }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: 16,
+            background: `linear-gradient(135deg, ${C.cardinal} 0%, ${C.cardinalDark} 100%)`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 24px',
+          }}>
+            <DollarSign size={28} color="#FAF8F3" />
+          </div>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 500, color: C.ink, marginBottom: 8 }}>
+            Start Your Day
+          </div>
+          <p style={{ color: C.mute, fontSize: 14, maxWidth: 340, margin: '0 auto 24px', lineHeight: 1.6 }}>
+            Enter your name and starting float to begin tallying sales for the day.
+          </p>
+          <button onClick={openStartDay}
+            style={{
+              padding: '14px 28px', background: C.cardinal, color: '#FAF8F3',
+              border: 'none', borderRadius: 8, cursor: 'pointer',
+              fontSize: 15, fontWeight: 600, fontFamily: FONT_BODY,
+              display: 'inline-flex', alignItems: 'center', gap: 10,
+              boxShadow: '0 4px 12px rgba(139,29,47,0.25)',
+            }}>
+            <DollarSign size={18} />
+            Start Day
+          </button>
+        </div>
+      )}
+      {loaded && hasStartedDay && (
         <>
           <div className="fdsa-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: 20 }}>
             {CATEGORIES.map(cat => (
@@ -991,7 +1107,8 @@ function EditorView({
             </div>
           </div>
         </>
-      )}
+        )}
+      </>
     </div>
   );
 }
@@ -1448,6 +1565,112 @@ function SignatureModal({ workingDate, dailyTotal, itemsCount, existing, value, 
             }}>
             <Save size={14} />
             {existing ? 'Save changes' : 'Sign & save day'}
+          </button>
+        </div>
+      </div>
+    </ModalShell>
+  );
+}
+
+function StartDayModal({ workingDate, startName, setStartName, startFloat, setStartFloat, onCancel, onSave }) {
+  const isValid = startName.trim() && startFloat && !isNaN(parseFloat(startFloat)) && parseFloat(startFloat) >= 0;
+  
+  return (
+    <ModalShell onCancel={onCancel}>
+      <div style={{ padding: 28, maxWidth: 480 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 10,
+            background: C.softBg, color: C.cardinal,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <DollarSign size={20} />
+          </div>
+          <div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.25em', color: C.mute, fontWeight: 600 }}>
+              Start the day
+            </div>
+            <h3 style={{ margin: '2px 0 0', fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 500 }}>
+              Enter your details
+            </h3>
+          </div>
+        </div>
+
+        <div style={{
+          padding: 14, background: C.softBg, borderRadius: 8, marginBottom: 18,
+          fontSize: 12, color: C.mute,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Calendar size={14} />
+            <span style={{ color: C.ink, fontWeight: 500 }}>{formatDateLong(workingDate)}</span>
+          </div>
+        </div>
+
+        <label style={{ display: 'block', marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: C.mute, fontWeight: 500, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <User size={14} /> Your name
+          </div>
+          <input
+            type="text" autoFocus value={startName}
+            onChange={e => setStartName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && isValid) onSave(); }}
+            placeholder="Enter your name"
+            style={{
+              width: '100%', padding: '12px 14px',
+              border: `1px solid ${C.lineStrong}`, borderRadius: 8,
+              fontSize: 15, fontFamily: FONT_BODY, color: C.ink,
+              background: C.card,
+            }}
+          />
+        </label>
+
+        <label style={{ display: 'block' }}>
+          <div style={{ fontSize: 12, color: C.mute, fontWeight: 500, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <DollarSign size={14} /> Starting float (change money)
+          </div>
+          <div style={{ position: 'relative' }}>
+            <span style={{
+              position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
+              color: C.mute, fontSize: 15, fontFamily: FONT_MONO,
+            }}>$</span>
+            <input
+              type="number" min="0" step="0.01" value={startFloat}
+              onChange={e => setStartFloat(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && isValid) onSave(); }}
+              placeholder="0.00"
+              style={{
+                width: '100%', padding: '12px 14px 12px 28px',
+                border: `1px solid ${C.lineStrong}`, borderRadius: 8,
+                fontSize: 15, fontFamily: FONT_MONO, color: C.ink,
+                background: C.card, boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        </label>
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
+          <button onClick={onCancel}
+            style={{
+              flex: '0 0 auto', padding: '11px 16px',
+              background: C.card, color: C.ink,
+              border: `1px solid ${C.lineStrong}`, borderRadius: 8,
+              cursor: 'pointer', fontSize: 13, fontWeight: 500, fontFamily: FONT_BODY,
+            }}>
+            Cancel
+          </button>
+          <button onClick={onSave}
+            disabled={!isValid}
+            style={{
+              flex: 1, padding: '11px 16px',
+              background: isValid ? C.cardinal : C.softBg,
+              color: isValid ? '#FAF8F3' : C.faint,
+              border: 'none', borderRadius: 8,
+              cursor: isValid ? 'pointer' : 'not-allowed',
+              fontSize: 14, fontWeight: 600, fontFamily: FONT_BODY,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}>
+            <Save size={14} />
+            Start Day
           </button>
         </div>
       </div>
