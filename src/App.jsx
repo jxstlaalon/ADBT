@@ -164,7 +164,7 @@ const totalItemsSold = (qs) =>
 const emptyQuantities = () =>
   Object.fromEntries(ALL_ITEMS.map(i => [i.id, 0]));
 
-const STORAGE_PREFIX = 'adbt_daily_';
+const STORAGE_PREFIX = 'adbt_daily_/';
 
 export default function App() {
   const [view, setView]             = useState('editor');
@@ -193,6 +193,7 @@ export default function App() {
   const [startFloat, setStartFloat] = useState('');
   const [notes, setNotes] = useState({ payouts: [], clears: [], custom: [] });
   const [noteModalOpen, setNoteModalOpen] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -222,10 +223,10 @@ export default function App() {
     setLoaded(false);
     (async () => {
       try {
-        const res = await window.storage.get(STORAGE_PREFIX + workingDate, false);
+        const res = await window.storage.get(STORAGE_PREFIX + workingDate);
         if (cancelled) return;
         if (res) {
-          const rec = JSON.parse(res);
+          const rec = res;
           setExistingRecord(rec);
           setQuantities(rec.quantities || emptyQuantities());
           setSales(rec.sales || []);
@@ -254,7 +255,7 @@ export default function App() {
       }
     })();
     return () => { cancelled = true; };
-  }, [workingDate]);
+  }, [workingDate, refreshKey]);
 
   useEffect(() => {
     if (!user) return;
@@ -263,10 +264,9 @@ export default function App() {
         const keys = await window.storage.list(STORAGE_PREFIX, false);
         const days = [];
         for (const key of keys) {
-          const data = await window.storage.get(key, false);
+          const data = await window.storage.get(key);
           if (data) {
-            const rec = JSON.parse(data);
-            days.push(rec);
+            days.push(data);
           }
         }
         days.sort((a,b) => b.date.localeCompare(a.date));
@@ -282,13 +282,12 @@ export default function App() {
     if (view !== 'past') return;
     (async () => {
       try {
-        const keys = await window.storage.list(STORAGE_PREFIX, false);
+        const keys = await window.storage.list(STORAGE_PREFIX);
         const days = [];
         for (const key of keys) {
-          const data = await window.storage.get(key, false);
+          const data = await window.storage.get(key);
           if (data) {
-            const rec = JSON.parse(data);
-            days.push(rec);
+            days.push(data);
           }
         }
         days.sort((a,b) => b.date.localeCompare(a.date));
@@ -379,7 +378,7 @@ export default function App() {
       notes,
     };
     try {
-      await window.storage.set(STORAGE_PREFIX + workingDate, JSON.stringify(record), false);
+      await window.storage.set(STORAGE_PREFIX + workingDate, record);
       setExistingRecord(record);
       setIsDirty(false);
       setUndoSnapshot(null);
@@ -404,7 +403,7 @@ export default function App() {
       editCount: (existingRecord?.editCount || 0) + (existingRecord ? 1 : 0),
     };
     try {
-      await window.storage.set(STORAGE_PREFIX + workingDate, JSON.stringify(record), false);
+      await window.storage.set(STORAGE_PREFIX + workingDate, record);
       setExistingRecord(record);
       setIsDirty(true);
       setStartDayOpen(false);
@@ -444,7 +443,7 @@ export default function App() {
       notes,
     };
     try {
-      await window.storage.set(STORAGE_PREFIX + workingDate, JSON.stringify(record), false);
+      await window.storage.set(STORAGE_PREFIX + workingDate, record);
       setExistingRecord(record);
       setIsDirty(false);
       setUndoSnapshot(null);
@@ -973,6 +972,15 @@ function EditorView({
             Jump to today
           </button>
         )}
+        <button onClick={() => setRefreshKey(k => k + 1)}
+          title="Refresh from database"
+          style={{
+            padding: '9px 14px', border: `1px solid ${C.lineStrong}`, borderRadius: 6,
+            background: C.card, cursor: 'pointer', fontSize: 12, fontWeight: 500,
+            color: C.ink, display: 'flex', alignItems: 'center', gap: 6, fontFamily: FONT_BODY,
+          }}>
+          <RotateCcw size={14} /> Refresh
+        </button>
         {existingRecord && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
