@@ -219,6 +219,7 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (!user) return;
     let cancelled = false;
     setLoaded(false);
     (async () => {
@@ -255,7 +256,7 @@ export default function App() {
       }
     })();
     return () => { cancelled = true; };
-  }, [workingDate, refreshKey]);
+  }, [workingDate, refreshKey, user]);
 
   useEffect(() => {
     if (!user) return;
@@ -340,7 +341,7 @@ export default function App() {
     setQuantities(undoSnapshot.quantities);
     setSales(undoSnapshot.sales || []);
     setUndoSnapshot(null);
-    if (existingRecord && JSON.stringify(snap) === JSON.stringify(existingRecord.quantities)) {
+    if (existingRecord && JSON.stringify(undoSnapshot.quantities) === JSON.stringify(existingRecord.quantities)) {
       setIsDirty(false);
     } else {
       setIsDirty(true);
@@ -401,6 +402,7 @@ export default function App() {
       savedAt: existingRecord?.savedAt || new Date().toISOString(),
       lastEdited: new Date().toISOString(),
       editCount: (existingRecord?.editCount || 0) + (existingRecord ? 1 : 0),
+      notes,
     };
     try {
       await window.storage.set(STORAGE_PREFIX + workingDate, record);
@@ -459,6 +461,7 @@ export default function App() {
 
   const openPastDay = (dateISO) => {
     setWorkingDate(dateISO);
+    setRefreshKey(k => k + 1);
     setView('editor');
   };
 
