@@ -840,11 +840,18 @@ A & D's Bakery
 
       <footer className="fdsa-footer" style={{ borderTop: `1px solid ${C.line}`, backgroundColor: C.card, marginTop: 40 }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 28px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-          <img src="logo.png" alt="Aalon & Deklon Bakery" style={{ width: 150, height: 150, objectFit: 'contain', marginBottom: 8 }} />
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 500, color: C.ink, letterSpacing: '0.01em' }}>
-              A & D's Bakery
-            </div>
+          <img src="logo.png" alt="Aalon & Deklon Bakery" style={{ width: 112, height: 112, objectFit: 'contain', marginBottom: 8 }} />
+          <div style={{ fontSize: 13, color: C.mute, fontStyle: 'italic', textAlign: 'center', maxWidth: 600, lineHeight: 1.6 }}>
+            &ldquo;Wealth from get-rich-quick schemes quickly disappears; wealth from hard work grows over time.&rdquo;
+          </div>
+          <div style={{ fontSize: 12, color: C.mute, textAlign: 'center' }}>
+            Proverbs 13:21
+          </div>
+          <div style={{ fontSize: 13, color: C.mute, fontStyle: 'italic', textAlign: 'center', maxWidth: 600, lineHeight: 1.6 }}>
+            &ldquo;For I know the plans I have for you,&rdquo; declares the LORD, &ldquo;plans to prosper you and not to harm you, plans to give you hope and a future.&rdquo;
+          </div>
+          <div style={{ fontSize: 12, color: C.mute, textAlign: 'center' }}>
+            Jeremiah 29:11
           </div>
           <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.28em', color: C.faint, fontWeight: 500 }}>
             Made by Aalon Peters

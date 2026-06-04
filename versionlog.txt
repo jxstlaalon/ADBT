@@ -1,9 +1,27 @@
 VERSION LOG - Aalon and Deklon Bakery Tracker
 =============================================
 
-Version 1.0 - Current
+Version 1.1 - Current
 --------------------
-Release Date: May 9, 2026
+Release Date: June 4, 2026
+
+CHANGES (v1.1)
+==============
+
+1. FAVICON UPDATE
+   - Replaced multiple old favicon files with new streamlined set
+   - Updated to modern formats: SVG favicon, 96x96 PNG, ICO fallback
+   - Added apple-touch-icon for iOS
+   - Added site.webmanifest for PWA support
+
+2. FOOTER UPDATE
+   - Added Proverbs 13:21 verse
+   - Added Jeremiah 29:11 verse
+   - Removed bakery name text from footer
+   - Reduced logo size by 25%
+
+Version 1.0
+-----------
 
 NEW FEATURES (v1.0)
 ===================
