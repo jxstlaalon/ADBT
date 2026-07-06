@@ -854,7 +854,7 @@ A & D's Bakery
             Jeremiah 29:11
           </div>
           <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.28em', color: C.faint, fontWeight: 500 }}>
-            Made by Aalon Peters
+            Made by Aalon and Deklon Peters
           </div>
         </div>
       </footer>
